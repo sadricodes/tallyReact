@@ -1,39 +1,56 @@
 const express = require("express");
-const dotenv = require("dotenv");
-const cors = require("cors");
-const connectDB = require("./config/db");
-const userRoutes = require("./routes/userRoutes");
-const charRoutes = require("./routes/charRoutes");
-const { notFound, errorHandler } = require("./middlewares/errorMiddleware");
-
 const app = express();
-dotenv.config();
-connectDB();
-app.use(express.json());
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
 
-// const whitelist = ["http://localhost:3000"];
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     if (!origin || whitelist.indexOf(origin) !== -1) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   credentials: true,
-// };
-// app.use(cors(corsOptions));
+// SET PORT
+const port = process.env.PORT || 3001;
 
-app.get("/", (req, res) => {
-  res.send("API is running");
+// API SECURITY
+app.use(helmet());
+
+// HANDLE CORS
+app.use(cors());
+
+// LOGGER
+app.use(morgan("tiny"));
+
+// SET BODYPARSER
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+// HANDLE ERROR
+const handleError = require("./src/utils/errorHandler");
+
+// LOAD ROUTERS
+const userRouter = require("./src/routers/userRouter");
+const charRouter = require("./src/routers/characterRouter");
+const eventRouter = require("./src/routers/eventsRouter");
+const jobsRouter = require("./src/routers/jobsRouter");
+const documentsRouter = require("./src/routers/documentsRouter");
+const usergroupsRouter = require("./src/routers/usergroupsRouter");
+
+// USE ROUTERS
+app.use("/user", userRouter);
+app.use("/character", charRouter);
+app.use("/events", eventRouter);
+app.use("/jobs", jobsRouter);
+app.use("/documents", documentsRouter);
+app.use("/usergroups", usergroupsRouter);
+
+// ERROR ROUTES
+app.use((req, res, next) => {
+  const error = new Error("Resource not found");
+  error.status = 404;
+  next(error);
 });
 
-app.use("/api/users", userRoutes);
-app.use("/api/chars", charRoutes);
+app.use((error, req, res, next) => {
+  handleError(error, res);
+});
 
-app.use(notFound);
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, console.log(`Server started on Port ${PORT}`));
+app.listen(port, () => {
+  console.log(`API is now ready on http://localhost:${port}`);
+});
